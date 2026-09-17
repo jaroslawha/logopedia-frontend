@@ -13,7 +13,7 @@ export default function Home() {
   const [result, setResult] = useState(null);
 
   // ZMIENIAJ PONIŻSZY LINK NA SWÓJ LINK Z RENDERA:
-  const API_URL = "https://logopedia-api.onrender.com/generate-plan";
+  const API_URL = "https://logopedia-api.onrender.com/";
 
   const handlePairChange = (index, field, value) => {
     const newPairs = [...wordPairs];
