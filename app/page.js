@@ -7,7 +7,7 @@ export default function PlanPage() {
   const [generatedPlan, setGeneratedPlan] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Bezpieczne pobieranie PDF wyłącznie w przeglądarce
+  // Funkcja generująca PDF odporna na proces build w Vercel
   const handleDownloadPDF = async () => {
     if (typeof window === 'undefined') return;
 
@@ -15,8 +15,10 @@ export default function PlanPage() {
     if (!element) return;
 
     try {
+      // Dynamiczny import ładujący bibliotekę tylko w przeglądarce
       // @ts-ignore
-      const html2pdf = (await import('html2pdf.js')).default;
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
 
       const opt = {
         margin: [8, 8, 8, 8],
@@ -28,7 +30,7 @@ export default function PlanPage() {
 
       html2pdf().set(opt).from(element).save();
     } catch (err) {
-      console.error('Błąd generowania PDF:', err);
+      console.error('Błąd podczas tworzenia pliku PDF:', err);
     }
   };
 
@@ -36,7 +38,7 @@ export default function PlanPage() {
   const handleGeneratePlan = async () => {
     setLoading(true);
     try {
-      // PODMIEŃ ADRES NA SWÓJ URL Z RENDER:
+      // PODMIEŃ ADRES NA SWÓJ REALNY URL Z RENDER:
       const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,7 +53,7 @@ export default function PlanPage() {
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana znaków nowej linii
+      // Poprawka podwójnych znaków nowej linii
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
@@ -65,7 +67,7 @@ export default function PlanPage() {
   return (
     <div style={{ maxWidth: '850px', margin: '30px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Pasek przycisków */}
+      {/* Pasek akcji */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <button 
           onClick={handleGeneratePlan}
@@ -103,7 +105,7 @@ export default function PlanPage() {
         )}
       </div>
 
-      {/* Wygenerowany widok karty */}
+      {/* Kontener podglądu karty */}
       {generatedPlan && (
         <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
@@ -129,7 +131,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Style uniwersalne dla dowolnego tekstu z Markdown */}
+      {/* Style interfejsu */}
       <style jsx global>{`
         .card-box {
           background-color: #ffffff;
@@ -156,7 +158,6 @@ export default function PlanPage() {
           letter-spacing: 0.5px;
         }
 
-        /* Formatowanie akapitów bez zlejania w jeden blok */
         .plan-styled-content p {
           font-size: 15px;
           line-height: 1.7;
@@ -165,7 +166,6 @@ export default function PlanPage() {
           white-space: pre-wrap;
         }
 
-        /* Automatyczne podświetlenie każdego tekstu ujętego w **gwiazdki** */
         .plan-styled-content strong {
           color: #0369a1;
           background-color: #f0f9ff;
