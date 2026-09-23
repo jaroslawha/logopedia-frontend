@@ -7,31 +7,36 @@ export default function PlanPage() {
   const [generatedPlan, setGeneratedPlan] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Funkcja pobierająca plik PDF z kart
+  // Bezpieczne pobieranie PDF wyłącznie w przeglądarce
   const handleDownloadPDF = async () => {
+    if (typeof window === 'undefined') return;
+
     const element = document.getElementById('pdf-cards-container');
     if (!element) return;
 
-    // Dynamiczny import z pominięciem sprawdzania typów TypeScript dla html2pdf
-    // @ts-ignore
-    const html2pdf = (await import('html2pdf.js')).default;
+    try {
+      // @ts-ignore
+      const html2pdf = (await import('html2pdf.js')).default;
 
-    const opt = {
-      margin: [8, 8, 8, 8],
-      filename: 'Plan_Terapii_Logopedycznej.pdf',
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, logging: false },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: 'Plan_Terapii_Logopedycznej.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
 
-    html2pdf().set(opt).from(element).save();
+      html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('Błąd generowania PDF:', err);
+    }
   };
 
-  // Zapytanie do backendu FastAPI na Render
+  // Zapytanie do backendu
   const handleGeneratePlan = async () => {
     setLoading(true);
     try {
-      // PODMIEŃ ADRES NA SWÓJ REALNY URL Z RENDER:
+      // PODMIEŃ ADRES NA SWÓJ URL Z RENDER:
       const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -46,7 +51,7 @@ export default function PlanPage() {
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana znaków escaped newline na prawdziwe znaki nowej linii
+      // Zamiana znaków nowej linii
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
@@ -60,7 +65,7 @@ export default function PlanPage() {
   return (
     <div style={{ maxWidth: '850px', margin: '30px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Pasek akcji */}
+      {/* Pasek przycisków */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <button 
           onClick={handleGeneratePlan}
@@ -98,7 +103,7 @@ export default function PlanPage() {
         )}
       </div>
 
-      {/* Kontener kart widocznych na ekranie i zapisywanych do PDF */}
+      {/* Wygenerowany widok karty */}
       {generatedPlan && (
         <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
@@ -124,7 +129,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Dynamiczne style dla wszystkich elementów generowanych przez AI */}
+      {/* Style uniwersalne dla dowolnego tekstu z Markdown */}
       <style jsx global>{`
         .card-box {
           background-color: #ffffff;
@@ -151,16 +156,16 @@ export default function PlanPage() {
           letter-spacing: 0.5px;
         }
 
-        /* Automatyczne formatowanie akapitów */
+        /* Formatowanie akapitów bez zlejania w jeden blok */
         .plan-styled-content p {
           font-size: 15px;
           line-height: 1.7;
           color: #334155;
           margin-bottom: 16px;
-          white-space: pre-line;
+          white-space: pre-wrap;
         }
 
-        /* Automatyczne wyróżnienie każdego tekstu ujętego w **gwiazdki** przez AI */
+        /* Automatyczne podświetlenie każdego tekstu ujętego w **gwiazdki** */
         .plan-styled-content strong {
           color: #0369a1;
           background-color: #f0f9ff;
