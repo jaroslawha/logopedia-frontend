@@ -4,10 +4,30 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 export default function PlanPage() {
+  // Stany formularza
+  const [role, setRole] = useState('Rodzic');
+  const [problemDescription, setProblemDescription] = useState('');
+  const [wordPairInput, setWordPairInput] = useState('');
+  const [wordPairs, setWordPairs] = useState([]);
+
+  // Stany generowania i wyników
   const [generatedPlan, setGeneratedPlan] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Funkcja generowania PDF pobierana wyłącznie w przeglądarce
+  // Dodawanie pary słów do listy
+  const handleAddWordPair = () => {
+    if (wordPairInput.trim()) {
+      setWordPairs([...wordPairs, wordPairInput.trim()]);
+      setWordPairInput('');
+    }
+  };
+
+  // Usuwanie pary słów
+  const handleRemoveWordPair = (index) => {
+    setWordPairs(wordPairs.filter((_, i) => i !== index));
+  };
+
+  // Pobieranie PDF w przeglądarce
   const handleDownloadPDF = async () => {
     if (typeof window === 'undefined') return;
 
@@ -32,8 +52,11 @@ export default function PlanPage() {
     }
   };
 
-  // Zapytanie do backendu na Render
-  const handleGeneratePlan = async () => {
+  // Zapytanie do backendu na Render z danymi z formularza
+  const handleGeneratePlan = async (e) => {
+    e.preventDefault();
+    if (!problemDescription.trim()) return;
+
     setLoading(true);
     try {
       // PODMIEŃ ADRES NA SWÓJ REALNY URL Z RENDER:
@@ -42,16 +65,16 @@ export default function PlanPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: 'guest',
-          role: 'Rodzic',
-          problem_description: 'Dziecko mówi Kjuj zamiast Król.',
-          word_pairs: []
+          role: role,
+          problem_description: problemDescription,
+          word_pairs: wordPairs
         })
       });
 
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana podwójnych znaków nowej linii z API
+      // Zamiana znaków nowej linii
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
@@ -65,47 +88,98 @@ export default function PlanPage() {
   return (
     <div style={{ maxWidth: '850px', margin: '30px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Pasek przycisków */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-        <button 
-          onClick={handleGeneratePlan}
-          disabled={loading}
-          style={{
-            padding: '12px 24px',
-            backgroundColor: '#0284c7',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '15px'
-          }}
-        >
-          {loading ? 'Generowanie...' : 'Generuj Plan Terapii'}
-        </button>
+      {/* SEKCJA FORMULARZA */}
+      <div className="form-card">
+        <h2 style={{ marginTop: 0, color: '#0f172a', fontSize: '20px' }}>Generator Planu Terapii</h2>
+        
+        <form onSubmit={handleGeneratePlan} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          
+          {/* Wybiór roli */}
+          <div>
+            <label className="input-label">Kim jesteś?</label>
+            <select 
+              value={role} 
+              onChange={(e) => setRole(e.target.value)}
+              className="form-input"
+            >
+              <option value="Rodzic">Rodzic</option>
+              <option value="Logopeda">Logopeda</option>
+            </select>
+          </div>
 
-        {generatedPlan && (
-          <button 
-            onClick={handleDownloadPDF}
-            style={{
-              padding: '12px 24px',
-              backgroundColor: '#16a34a',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '15px'
-            }}
-          >
-            📄 Pobierz Raport PDF
-          </button>
-        )}
+          {/* Opis problemu */}
+          <div>
+            <label className="input-label">Opis problemu logopedycznego</label>
+            <textarea 
+              rows={4}
+              value={problemDescription}
+              onChange={(e) => setProblemDescription(e.target.value)}
+              placeholder="Opisz trudności dziecka (np. dziecko myli głoski R oraz L, zamiast Król mówi Kjuj)..."
+              required
+              className="form-input"
+            />
+          </div>
+
+          {/* Przykłady wyrazów / par słów */}
+          <div>
+            <label className="input-label">Przykłady niepoprawnie wymawianych słów (opcjonalnie)</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input 
+                type="text"
+                value={wordPairInput}
+                onChange={(e) => setWordPairInput(e.target.value)}
+                placeholder="np. Król -> Kjuj"
+                className="form-input"
+              />
+              <button 
+                type="button" 
+                onClick={handleAddWordPair}
+                className="btn-secondary"
+              >
+                Dodaj
+              </button>
+            </div>
+
+            {/* Lista dodanych słów */}
+            {wordPairs.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+                {wordPairs.map((pair, index) => (
+                  <span key={index} className="word-chip">
+                    {pair}
+                    <button type="button" onClick={() => handleRemoveWordPair(index)} className="chip-remove">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Przyciski Akcji */}
+          <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+            <button 
+              type="submit"
+              disabled={loading || !problemDescription.trim()}
+              className="btn-primary"
+            >
+              {loading ? 'Generowanie planu...' : 'Generuj Plan Terapii'}
+            </button>
+
+            {generatedPlan && (
+              <button 
+                type="button"
+                onClick={handleDownloadPDF}
+                className="btn-success"
+              >
+                📄 Pobierz Raport PDF
+              </button>
+            )}
+          </div>
+
+        </form>
       </div>
 
-      {/* Podgląd karty z wygenerowanym tekstem */}
+      {/* SEKCJA WYNIKOWA (WYGENEROWANA KARTA) */}
       {generatedPlan && (
-        <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '30px' }}>
           
           <div className="card-box">
             <div className="card-header">
@@ -129,8 +203,96 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Style CSS dla wygenerowanych treści */}
+      {/* STYLE SYSTEMOWE */}
       <style jsx global>{`
+        .form-card {
+          background-color: #ffffff;
+          padding: 24px;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+
+        .input-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: #475569;
+          margin-bottom: 6px;
+        }
+
+        .form-input {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          font-size: 14px;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .form-input:focus {
+          outline: none;
+          border-color: #0284c7;
+        }
+
+        .btn-primary {
+          padding: 12px 20px;
+          background-color: #0284c7;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+        }
+
+        .btn-primary:disabled {
+          background-color: #94a3b8;
+          cursor: not-allowed;
+        }
+
+        .btn-secondary {
+          padding: 10px 16px;
+          background-color: #f1f5f9;
+          color: #334155;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+
+        .btn-success {
+          padding: 12px 20px;
+          background-color: #16a34a;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+        }
+
+        .word-chip {
+          background-color: #e0f2fe;
+          color: #0369a1;
+          padding: 4px 10px;
+          border-radius: 16px;
+          font-size: 13px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .chip-remove {
+          background: none;
+          border: none;
+          color: #0369a1;
+          cursor: pointer;
+          font-weight: bold;
+          padding: 0;
+        }
+
         .card-box {
           background-color: #ffffff;
           padding: 32px;
@@ -153,7 +315,6 @@ export default function PlanPage() {
           padding: 4px 8px;
           border-radius: 4px;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
         }
 
         .plan-styled-content p {
@@ -200,16 +361,6 @@ export default function PlanPage() {
           line-height: 1.6;
           color: #334155;
           margin-bottom: 8px;
-        }
-
-        .plan-styled-content blockquote {
-          background-color: #f8fafc;
-          border-left: 4px solid #64748b;
-          margin: 20px 0;
-          padding: 12px 16px;
-          border-radius: 0 8px 8px 0;
-          font-size: 13px;
-          color: #475569;
         }
       `}</style>
 
