@@ -1,143 +1,162 @@
 'use client';
+
 import { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
-export default function Home() {
-  const [role, setRole] = useState('Rodzic/opiekun');
-  const [problem, setProblem] = useState('');
-  const [wordPairs, setWordPairs] = useState([
-    { correct: '', incorrect: '' },
-    { correct: '', incorrect: '' },
-    { correct: '', incorrect: '' }
-  ]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+export default function PlanPage() {
+  const [generatedPlan, setGeneratedPlan] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
 
-  // ZMIENIAJ PONIŻSZY LINK NA SWÓJ LINK Z RENDERA:
-    const API_URL = "https://logopedia-api.onrender.com/generate-plan";
+  // Funkcja pobierająca plik PDF z wygenerowanej karty
+  const handleDownloadPDF = async () => {
+    const element = document.getElementById('pdf-card');
+    if (!element) return;
 
-  const handlePairChange = (index, field, value) => {
-    const newPairs = [...wordPairs];
-    newPairs[index][field] = value;
-    setWordPairs(newPairs);
+    // Dynamiczny import biblioteki html2pdf (wymagany przez Next.js)
+    const html2pdf = (await import('html2pdf.js')).default;
+
+    const opt = {
+      margin: [10, 10, 10, 10],
+      filename: 'Plan_Terapii_Logopedycznej.pdf',
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(element).save();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // Zapytanie do Twojego backendu na Render
+  const handleGeneratePlan = async () => {
     setLoading(true);
-
     try {
-      const res = await fetch(API_URL, {
+      // PODMIEŃ PONIŻSZY ADRES NA SWÓJ REALNY URL Z RENDER:
+      const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: 'guest',
-          role: role,
-          problem_description: problem,
-          word_pairs: wordPairs
+          role: 'Rodzic',
+          problem_description: 'Dziecko ma trudności z prawidłową wymową głoski R.',
+          word_pairs: []
         })
       });
 
-      const data = await res.json();
-      if (res.ok) {
-        setResult(data.generated_plan);
-      } else {
-        alert("Błąd: " + (data.detail || "Nie udało się wygenerować planu."));
-      }
-    } catch (err) {
-      alert("Błąd połączenia z serwerem.");
+      const data = await response.json();
+      setGeneratedPlan(data.generated_plan);
+    } catch (error) {
+      console.error('Błąd generowania planu:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const downloadPDF = () => {
-    import('html2pdf.js').then((html2pdf) => {
-      const element = document.getElementById('plan-content');
-      html2pdf.default().from(element).save('plan_cwiczen_logopedycznych.pdf');
-    });
-  };
-
   return (
-    <main className="max-w-2xl mx-auto p-4 sm:p-6">
-      <header className="text-center my-6">
-        <h1 className="text-3xl font-bold text-blue-600">Asystent Logopedyczny AI</h1>
-        <p className="text-slate-600 text-sm mt-1">Stwórz spersonalizowany plan ćwiczeń w kilka sekund</p>
-      </header>
+    <div style={{ maxWidth: '800px', margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
+      
+      {/* Pasek akcji z przyciskami */}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+        <button 
+          onClick={handleGeneratePlan}
+          disabled={loading}
+          style={{
+            padding: '12px 20px',
+            backgroundColor: '#0284c7',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+        >
+          {loading ? 'Generowanie...' : 'Generuj Plan'}
+        </button>
 
-      <div className="bg-white p-6 rounded-xl shadow-md border border-blue-100">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Kim jesteś? *</label>
-            <select 
-              value={role} 
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full p-2.5 bg-blue-50/50 border border-blue-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="Rodzic/opiekun">Rodzic/opiekun</option>
-              <option value="Logopeda/specjalista">Logopeda/specjalista</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Opis problemu *</label>
-            <textarea
-              required
-              rows="3"
-              value={problem}
-              onChange={(e) => setProblem(e.target.value)}
-              placeholder="Opisz wadę wymowy lub trudności dziecka..."
-              className="w-full p-2.5 bg-blue-50/50 border border-blue-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1">Przykłady wymowy (opcjonalnie)</label>
-            {wordPairs.map((pair, idx) => (
-              <div key={idx} className="flex gap-2 mb-2">
-                <input
-                  type="text"
-                  placeholder="Słowo poprawne (np. król)"
-                  value={pair.correct}
-                  onChange={(e) => handlePairChange(idx, 'correct', e.target.value)}
-                  className="w-1/2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                />
-                <input
-                  type="text"
-                  placeholder="Jak wymawia (np. kjuj)"
-                  value={pair.incorrect}
-                  onChange={(e) => handlePairChange(idx, 'incorrect', e.target.value)}
-                  className="w-1/2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                />
-              </div>
-            ))}
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg shadow transition"
+        {generatedPlan && (
+          <button 
+            onClick={handleDownloadPDF}
+            style={{
+              padding: '12px 20px',
+              backgroundColor: '#16a34a',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
           >
-            {loading ? 'Generowanie planu przez AI...' : 'Wygeneruj plan ćwiczeń'}
+            📄 Pobierz jako PDF
           </button>
-        </form>
+        )}
       </div>
 
-      {result && (
-        <div className="mt-8 bg-white p-6 rounded-xl shadow-md border border-slate-200">
-          <div id="plan-content" className="prose text-slate-800 whitespace-pre-wrap">
-            {result}
+      {/* Karta, która zostaje wyrenderowana na ekranie i zapisana do PDF */}
+      {generatedPlan && (
+        <div 
+          id="pdf-card"
+          style={{
+            backgroundColor: '#ffffff',
+            padding: '35px',
+            borderRadius: '12px',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            color: '#1e293b'
+          }}
+        >
+          <div style={{ borderBottom: '3px solid #0284c7', paddingBottom: '12px', marginBottom: '20px' }}>
+            <h1 style={{ margin: 0, fontSize: '22px', color: '#0f172a' }}>Plan Terapii Logopedycznej</h1>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#64748b' }}>Dokument Edukacyjno-Terapeutyczny</p>
           </div>
-          
-          <div className="mt-6 flex gap-3">
-            <button
-              onClick={downloadPDF}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 rounded-lg text-center shadow"
-            >
-              Pobierz jako PDF
-            </button>
+
+          <div className="plan-styled-content">
+            <ReactMarkdown>{generatedPlan}</ReactMarkdown>
+          </div>
+
+          <div style={{ marginTop: '30px', paddingTop: '10px', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
+            Wygenerowano automatycznie z aplikacji Logopedia AI
           </div>
         </div>
       )}
-    </main>
+
+      {/* Style CSS dla sekcji wynikowej */}
+      <style jsx global>{`
+        .plan-styled-content h2 {
+          color: #0f172a;
+          font-size: 17px;
+          border-left: 4px solid #0284c7;
+          padding-left: 10px;
+          margin-top: 24px;
+          margin-bottom: 12px;
+        }
+        .plan-styled-content h3 {
+          color: #0369a1;
+          font-size: 14px;
+          background-color: #f0f9ff;
+          padding: 8px 12px;
+          border-radius: 6px;
+          margin-top: 16px;
+          margin-bottom: 8px;
+        }
+        .plan-styled-content ul {
+          padding-left: 20px;
+          margin: 8px 0;
+        }
+        .plan-styled-content li {
+          margin-bottom: 4px;
+          line-height: 1.5;
+        }
+        .plan-styled-content blockquote {
+          background-color: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-left: 4px solid #2563eb;
+          margin-top: 24px;
+          padding: 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          color: #1e40af;
+        }
+      `}</style>
+
+    </div>
   );
 }
