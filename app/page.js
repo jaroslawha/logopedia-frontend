@@ -12,7 +12,7 @@ export default function PlanPage() {
     const element = document.getElementById('pdf-card');
     if (!element) return;
 
-    // Dynamiczny import biblioteki html2pdf (wymagany przez Next.js)
+    // Dynamiczny import biblioteki html2pdf
     const html2pdf = (await import('html2pdf.js')).default;
 
     const opt = {
@@ -30,7 +30,7 @@ export default function PlanPage() {
   const handleGeneratePlan = async () => {
     setLoading(true);
     try {
-      // PODMIEŃ PONIŻSZY ADRES NA SWÓJ REALNY URL Z RENDER:
+      // Podmień na Twój właściwy adres backendu na Render:
       const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,7 +54,7 @@ export default function PlanPage() {
   return (
     <div style={{ maxWidth: '800px', margin: '40px auto', padding: '0 20px', fontFamily: 'sans-serif' }}>
       
-      {/* Pasek akcji z przyciskami */}
+      {/* Pasek przycisków */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <button 
           onClick={handleGeneratePlan}
@@ -90,7 +90,7 @@ export default function PlanPage() {
         )}
       </div>
 
-      {/* Karta, która zostaje wyrenderowana na ekranie i zapisana do PDF */}
+      {/* Karta z wygenerowanym planem */}
       {generatedPlan && (
         <div 
           id="pdf-card"
@@ -118,7 +118,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Style CSS dla sekcji wynikowej */}
+      {/* Style wyglądów sekcji */}
       <style jsx global>{`
         .plan-styled-content h2 {
           color: #0f172a;
