@@ -1,226 +1,26 @@
-'use client';
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-
-export default function Home() {
-  const [role, setRole] = useState('Rodzic/opiekun');
-  const [problem, setProblem] = useState('');
-  const [wordPairs, setWordPairs] = useState([
-    { correct: '', incorrect: '' },
-    { correct: '', incorrect: '' },
-    { correct: '', incorrect: '' }
-  ]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
-
-  const API_URL = "https://logopedia-api.onrender.com/generate-plan";
-
-  const handlePairChange = (index, field, value) => {
-    const newPairs = [...wordPairs];
-    newPairs[index][field] = value;
-    setWordPairs(newPairs);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: 'guest',
-          role: role,
-          problem_description: problem,
-          word_pairs: wordPairs
-        })
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setResult(data.generated_plan);
-      } else {
-        alert("Błąd: " + (data.detail || "Nie udało się wygenerować planu."));
-      }
-    } catch (err) {
-      alert("Błąd połączenia z serwerem.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const downloadPDF = () => {
-    window.print();
-  };
-
-  return (
-    <>
-      {/* Dedukowane style dla druku PDF */}
-      <style jsx global>{`
-        @media print {
-          body {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-          }
-          .no-print {
-            display: none !important;
-          }
-          .print-container {
-            box-shadow: none !important;
-            border: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            max-width: 100% !important;
-          }
-          .print-card {
-            break-inside: avoid;
-            page-break-inside: avoid;
-            border: 1px solid #e2e8f0 !important;
-            background-color: #ffffff !important;
-            margin-bottom: 1rem !important;
-          }
-        }
-      `}</style>
-
-      <main className="max-w-2xl mx-auto p-4 sm:p-6 print-container">
-        {/* Nagłówek aplikacji */}
-        <header className="text-center my-6 no-print">
-          <h1 className="text-3xl font-bold text-blue-600">Asystent Logopedyczny AI</h1>
-          <p className="text-slate-600 text-sm mt-1">Stwórz spersonalizowany plan ćwiczeń w kilka sekund</p>
-        </header>
-
-        {/* FORMULARZ WEJŚCIOWY */}
-        <div className="bg-white p-6 rounded-xl shadow-md border border-blue-100 no-print">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Kim jesteś? *</label>
-              <select 
-                value={role} 
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full p-2.5 bg-blue-50/50 border border-blue-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="Rodzic/opiekun">Rodzic/opiekun</option>
-                <option value="Logopeda/specjalista">Logopeda/specjalista</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Opis problemu *</label>
-              <textarea
-                required
-                rows="3"
-                value={problem}
-                onChange={(e) => setProblem(e.target.value)}
-                placeholder="Opisz wadę wymowy lub trudności dziecka..."
-                className="w-full p-2.5 bg-blue-50/50 border border-blue-200 rounded-lg text-slate-800 focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Przykłady wymowy (opcjonalnie)</label>
-              {wordPairs.map((pair, idx) => (
-                <div key={idx} className="flex gap-2 mb-2">
-                  <input
-                    type="text"
-                    placeholder="Słowo poprawne (np. król)"
-                    value={pair.correct}
-                    onChange={(e) => handlePairChange(idx, 'correct', e.target.value)}
-                    className="w-1/2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Jak wymawia (np. kjuj)"
-                    value={pair.incorrect}
-                    onChange={(e) => handlePairChange(idx, 'incorrect', e.target.value)}
-                    className="w-1/2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg shadow transition"
-            >
-              {loading ? 'Generowanie planu przez AI...' : 'Wygeneruj plan ćwiczeń'}
-            </button>
-          </form>
-        </div>
-
-        {/* WIDOK WYGENEROWANEGO PLANU - FORMULARZOWY STYL */}
-        {result && (
-          <div className="mt-8 space-y-4 print-container">
-            {/* Nagłówek widoczny na wydruku PDF */}
-            <div className="hidden print:block mb-6 border-b border-blue-200 pb-4">
-              <h1 className="text-2xl font-bold text-blue-600">Spersonalizowany Plan Logopedyczny</h1>
-              <p className="text-xs text-slate-500 mt-1">Wygenerowano przy użyciu Asystenta Logopedycznego AI</p>
-            </div>
-
-            {/* Dedykowany render danych z podziałem na moduły i karty */}
-            <div id="plan-content" className="space-y-4">
-              <ReactMarkdown
-                components={{
-                  // Sekcje główne (Część I, Część II, Część III)
-                  h2: ({ node, ...props }) => (
-                    <div className="bg-blue-600 text-white font-semibold text-base px-4 py-2.5 rounded-lg shadow-sm mt-6 mb-3 print-card">
-                      <h2 {...props} />
-                    </div>
-                  ),
-                  // Karty pojedynczych ćwiczeń / zabaw
-                  h3: ({ node, ...props }) => (
-                    <div className="bg-blue-50/70 border border-blue-200 rounded-lg p-3 mt-4 mb-2">
-                      <h3 className="text-sm font-bold text-blue-800" {...props} />
-                    </div>
-                  ),
-                  // Bloki tekstu i opisy
-                  p: ({ node, ...props }) => (
-                    <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm text-slate-800 text-sm leading-relaxed mb-3 print-card">
-                      <p {...props} />
-                    </div>
-                  ),
-                  // Listy z punktami (np. Cel, Instrukcja, Przygotowanie)
-                  ul: ({ node, ...props }) => (
-                    <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm mb-3 print-card">
-                      <ul className="space-y-2 text-slate-700 text-sm" {...props} />
-                    </div>
-                  ),
-                  li: ({ node, ...props }) => (
-                    <li className="flex gap-2 items-start" {...props}>
-                      <span className="text-blue-500 font-bold">•</span>
-                      <div>{props.children}</div>
-                    </li>
-                  ),
-                  strong: ({ node, ...props }) => (
-                    <strong className="font-semibold text-slate-900" {...props} />
-                  ),
-                  blockquote: ({ node, ...props }) => (
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 italic mt-6 print-card">
-                      <blockquote {...props} />
-                    </div>
-                  ),
-                  hr: () => null // Ukrywamy linię podziału
-                }}
-              >
-                {result}
-              </ReactMarkdown>
-            </div>
-            
-            {/* Przycisk Pobierania PDF */}
-            <div className="mt-6 flex gap-3 no-print">
-              <button
-                onClick={downloadPDF}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg text-center shadow transition"
-              >
-                Pobierz jako PDF / Wydrukuj
-              </button>
-            </div>
-          </div>
-        )}
-      </main>
-    </>
-  );
+{
+  "name": "logopedia-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "html2pdf.js": "^0.10.1",
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-markdown": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
 }
