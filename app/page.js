@@ -4,10 +4,10 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 export default function PlanPage() {
-  const [generatedPlan, setGeneratedPlan] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
+  const [generatedPlan, setGeneratedPlan] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Funkcja generująca PDF odporna na proces build w Vercel
+  // Funkcja generowania PDF pobierana wyłącznie w przeglądarce
   const handleDownloadPDF = async () => {
     if (typeof window === 'undefined') return;
 
@@ -15,8 +15,6 @@ export default function PlanPage() {
     if (!element) return;
 
     try {
-      // Dynamiczny import ładujący bibliotekę tylko w przeglądarce
-      // @ts-ignore
       const html2pdfModule = await import('html2pdf.js');
       const html2pdf = html2pdfModule.default || html2pdfModule;
 
@@ -34,7 +32,7 @@ export default function PlanPage() {
     }
   };
 
-  // Zapytanie do backendu
+  // Zapytanie do backendu na Render
   const handleGeneratePlan = async () => {
     setLoading(true);
     try {
@@ -53,7 +51,7 @@ export default function PlanPage() {
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Poprawka podwójnych znaków nowej linii
+      // Zamiana podwójnych znaków nowej linii z API
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
@@ -67,7 +65,7 @@ export default function PlanPage() {
   return (
     <div style={{ maxWidth: '850px', margin: '30px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* Pasek akcji */}
+      {/* Pasek przycisków */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
         <button 
           onClick={handleGeneratePlan}
@@ -105,7 +103,7 @@ export default function PlanPage() {
         )}
       </div>
 
-      {/* Kontener podglądu karty */}
+      {/* Podgląd karty z wygenerowanym tekstem */}
       {generatedPlan && (
         <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
@@ -131,7 +129,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Style interfejsu */}
+      {/* Style CSS dla wygenerowanych treści */}
       <style jsx global>{`
         .card-box {
           background-color: #ffffff;
