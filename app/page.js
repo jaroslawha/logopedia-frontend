@@ -12,6 +12,8 @@ export default function PlanPage() {
     const element = document.getElementById('pdf-cards-container');
     if (!element) return;
 
+    // Dynamiczny import z pominięciem sprawdzania typów TypeScript dla html2pdf
+    // @ts-ignore
     const html2pdf = (await import('html2pdf.js')).default;
 
     const opt = {
@@ -29,7 +31,7 @@ export default function PlanPage() {
   const handleGeneratePlan = async () => {
     setLoading(true);
     try {
-      // PODMIEŃ NA SWÓJ REALNY ADRES SERWERA RENDER:
+      // PODMIEŃ ADRES NA SWÓJ REALNY URL Z RENDER:
       const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -44,7 +46,7 @@ export default function PlanPage() {
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Poprawka podwójnych ucieczek nowych linii z API
+      // Zamiana znaków escaped newline na prawdziwe znaki nowej linii
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
@@ -100,7 +102,6 @@ export default function PlanPage() {
       {generatedPlan && (
         <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* KARTA 1: Nagłówek i Wyniki Analizy */}
           <div className="card-box">
             <div className="card-header">
               <div>
@@ -123,7 +124,7 @@ export default function PlanPage() {
         </div>
       )}
 
-      {/* Style wizualne dla kart i tekstu */}
+      {/* Dynamiczne style dla wszystkich elementów generowanych przez AI */}
       <style jsx global>{`
         .card-box {
           background-color: #ffffff;
@@ -150,15 +151,16 @@ export default function PlanPage() {
           letter-spacing: 0.5px;
         }
 
-        /* Stylizacja wygenerowanego tekstu */
+        /* Automatyczne formatowanie akapitów */
         .plan-styled-content p {
           font-size: 15px;
           line-height: 1.7;
           color: #334155;
           margin-bottom: 16px;
-          white-space: pre-line; /* Kluczowe do zachowania akapitów */
+          white-space: pre-line;
         }
 
+        /* Automatyczne wyróżnienie każdego tekstu ujętego w **gwiazdki** przez AI */
         .plan-styled-content strong {
           color: #0369a1;
           background-color: #f0f9ff;
