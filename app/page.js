@@ -3,18 +3,15 @@
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-export default function PlanPage() {
-  // Stany formularza
+export default function Home() {
   const [role, setRole] = useState('Rodzic');
   const [problemDescription, setProblemDescription] = useState('');
   const [wordPairInput, setWordPairInput] = useState('');
   const [wordPairs, setWordPairs] = useState([]);
-
-  // Stany generowania i wyników
+  
   const [generatedPlan, setGeneratedPlan] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Dodawanie pary słów do listy
   const handleAddWordPair = () => {
     if (wordPairInput.trim()) {
       setWordPairs([...wordPairs, wordPairInput.trim()]);
@@ -22,12 +19,10 @@ export default function PlanPage() {
     }
   };
 
-  // Usuwanie pary słów
   const handleRemoveWordPair = (index) => {
     setWordPairs(wordPairs.filter((_, i) => i !== index));
   };
 
-  // Pobieranie PDF w przeglądarce
   const handleDownloadPDF = async () => {
     if (typeof window === 'undefined') return;
 
@@ -48,12 +43,11 @@ export default function PlanPage() {
 
       html2pdf().set(opt).from(element).save();
     } catch (err) {
-      console.error('Błąd podczas tworzenia pliku PDF:', err);
+      console.error('Błąd podczas generowania PDF:', err);
     }
   };
 
-  // Zapytanie do backendu na Render z danymi z formularza
-  const handleGeneratePlan = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!problemDescription.trim()) return;
 
@@ -74,7 +68,7 @@ export default function PlanPage() {
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana znaków nowej linii
+      // Zamiana znaków nowej linii z API
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
@@ -86,17 +80,19 @@ export default function PlanPage() {
   };
 
   return (
-    <div style={{ maxWidth: '850px', margin: '30px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <main style={{ maxWidth: '850px', margin: '40px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       
-      {/* SEKCJA FORMULARZA */}
-      <div className="form-card">
-        <h2 style={{ marginTop: 0, color: '#0f172a', fontSize: '20px' }}>Generator Planu Terapii</h2>
-        
-        <form onSubmit={handleGeneratePlan} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+      {/* FORMULARZ WEJŚCIOWY */}
+      <div className="card-box" style={{ marginBottom: '30px' }}>
+        <h1 style={{ marginTop: 0, fontSize: '24px', color: '#0f172a' }}>Generator Planu Terapii Logopedycznej</h1>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '24px' }}>
+          Wypełnij poniższe pola, aby wygenerować spersonalizowaną kartę diagnozy oraz plan ćwiczeń.
+        </p>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
-          {/* Wybiór roli */}
           <div>
-            <label className="input-label">Kim jesteś?</label>
+            <label className="input-label">Rola</label>
             <select 
               value={role} 
               onChange={(e) => setRole(e.target.value)}
@@ -107,22 +103,20 @@ export default function PlanPage() {
             </select>
           </div>
 
-          {/* Opis problemu */}
           <div>
-            <label className="input-label">Opis problemu logopedycznego</label>
+            <label className="input-label">Opis problemu</label>
             <textarea 
               rows={4}
               value={problemDescription}
               onChange={(e) => setProblemDescription(e.target.value)}
-              placeholder="Opisz trudności dziecka (np. dziecko myli głoski R oraz L, zamiast Król mówi Kjuj)..."
+              placeholder="Opisz zauważone trudności językowe lub wymowę dziecka..."
               required
               className="form-input"
             />
           </div>
 
-          {/* Przykłady wyrazów / par słów */}
           <div>
-            <label className="input-label">Przykłady niepoprawnie wymawianych słów (opcjonalnie)</label>
+            <label className="input-label">Pary słów (opcjonalnie)</label>
             <div style={{ display: 'flex', gap: '8px' }}>
               <input 
                 type="text"
@@ -136,11 +130,10 @@ export default function PlanPage() {
                 onClick={handleAddWordPair}
                 className="btn-secondary"
               >
-                Dodaj
+                Dodaj parę
               </button>
             </div>
 
-            {/* Lista dodanych słów */}
             {wordPairs.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
                 {wordPairs.map((pair, index) => (
@@ -153,14 +146,13 @@ export default function PlanPage() {
             )}
           </div>
 
-          {/* Przyciski Akcji */}
           <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
             <button 
               type="submit"
               disabled={loading || !problemDescription.trim()}
               className="btn-primary"
             >
-              {loading ? 'Generowanie planu...' : 'Generuj Plan Terapii'}
+              {loading ? 'Generowanie...' : 'Generuj plan'}
             </button>
 
             {generatedPlan && (
@@ -169,7 +161,7 @@ export default function PlanPage() {
                 onClick={handleDownloadPDF}
                 className="btn-success"
               >
-                📄 Pobierz Raport PDF
+                📄 Pobierz jako PDF
               </button>
             )}
           </div>
@@ -177,17 +169,17 @@ export default function PlanPage() {
         </form>
       </div>
 
-      {/* SEKCJA WYNIKOWA (WYGENEROWANA KARTA) */}
+      {/* SEKCJA WYNIKOWA DO DRUKU / ZAPISU PDF */}
       {generatedPlan && (
-        <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '30px' }}>
+        <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           <div className="card-box">
             <div className="card-header">
               <div>
                 <span className="badge">Karta Terapii</span>
-                <h1 style={{ margin: '8px 0 0 0', fontSize: '22px', color: '#0f172a' }}>
+                <h2 style={{ margin: '8px 0 0 0', fontSize: '20px', color: '#0f172a' }}>
                   Analiza Logopedyczna i Plan Pracy
-                </h1>
+                </h2>
               </div>
             </div>
 
@@ -196,21 +188,27 @@ export default function PlanPage() {
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8', marginTop: '8px' }}>
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
             Wygenerowano automatycznie z systemu AI Logopedia
           </div>
 
         </div>
       )}
 
-      {/* STYLE SYSTEMOWE */}
+      {/* STYLE CSS */}
       <style jsx global>{`
-        .form-card {
+        .card-box {
           background-color: #ffffff;
-          padding: 24px;
+          padding: 32px;
           border-radius: 12px;
           border: 1px solid #e2e8f0;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+          border-bottom: 2px solid #e2e8f0;
+          padding-bottom: 16px;
+          margin-bottom: 20px;
         }
 
         .input-label {
@@ -237,8 +235,8 @@ export default function PlanPage() {
         }
 
         .btn-primary {
-          padding: 12px 20px;
-          background-color: #0284c7;
+          padding: 12px 24px;
+          backgroundColor: #0284c7;
           color: #ffffff;
           border: none;
           border-radius: 8px;
@@ -260,10 +258,11 @@ export default function PlanPage() {
           border-radius: 6px;
           cursor: pointer;
           font-weight: 600;
+          white-space: nowrap;
         }
 
         .btn-success {
-          padding: 12px 20px;
+          padding: 12px 24px;
           background-color: #16a34a;
           color: #ffffff;
           border: none;
@@ -293,20 +292,6 @@ export default function PlanPage() {
           padding: 0;
         }
 
-        .card-box {
-          background-color: #ffffff;
-          padding: 32px;
-          border-radius: 12px;
-          border: 1px solid #e2e8f0;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-        }
-
-        .card-header {
-          border-bottom: 2px solid #e2e8f0;
-          padding-bottom: 16px;
-          margin-bottom: 20px;
-        }
-
         .badge {
           background-color: #e0f2fe;
           color: #0369a1;
@@ -317,6 +302,7 @@ export default function PlanPage() {
           text-transform: uppercase;
         }
 
+        /* Formatowanie wygenerowanej zawartości */
         .plan-styled-content p {
           font-size: 15px;
           line-height: 1.7;
@@ -364,6 +350,6 @@ export default function PlanPage() {
         }
       `}</style>
 
-    </div>
+    </main>
   );
 }
