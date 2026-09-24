@@ -11,16 +11,18 @@ export default function Home() {
   
   const [generatedPlan, setGeneratedPlan] = useState('');
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleAddWordPair = () => {
+  const handleAddWordPair = (e) => {
+    e.preventDefault();
     if (wordPairInput.trim()) {
       setWordPairs([...wordPairs, wordPairInput.trim()]);
       setWordPairInput('');
     }
   };
 
-  const handleRemoveWordPair = (index) => {
-    setWordPairs(wordPairs.filter((_, i) => i !== index));
+  const handleRemoveWordPair = (indexToRemove) => {
+    setWordPairs(wordPairs.filter((_, index) => index !== indexToRemove));
   };
 
   const handleDownloadPDF = async () => {
@@ -52,11 +54,16 @@ export default function Home() {
     if (!problemDescription.trim()) return;
 
     setLoading(true);
+    setErrorMessage('');
+    
     try {
-      // PODMIEŃ ADRES NA SWÓJ REALNY URL Z RENDER:
+      // UWAGA: Upewnij się, że ten adres odpowiada Twojej usłudze na Render!
       const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           user_id: 'guest',
           role: role,
@@ -65,15 +72,20 @@ export default function Home() {
         })
       });
 
+      if (!response.ok) {
+        throw new Error(`Błąd serwera: ${response.status}`);
+      }
+
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana znaków nowej linii z API
+      // Zamiana formatowania nowej linii
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
     } catch (error) {
       console.error('Błąd generowania planu:', error);
+      setErrorMessage('Nie udało się połączyć z serwerem. Upewnij się, że podałeś poprawny URL backendu na Render.');
     } finally {
       setLoading(false);
     }
@@ -145,6 +157,12 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {errorMessage && (
+            <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '6px', fontSize: '14px', border: '1px solid #fecaca' }}>
+              {errorMessage}
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
             <button 
@@ -236,7 +254,7 @@ export default function Home() {
 
         .btn-primary {
           padding: 12px 24px;
-          backgroundColor: #0284c7;
+          background-color: #0284c7;
           color: #ffffff;
           border: none;
           border-radius: 8px;
