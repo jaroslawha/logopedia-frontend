@@ -4,27 +4,35 @@ import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
+  // Stany formularza
   const [role, setRole] = useState('Rodzic');
   const [problemDescription, setProblemDescription] = useState('');
-  const [wordPairInput, setWordPairInput] = useState('');
+  const [correctWord, setCorrectWord] = useState('');
+  const [incorrectWord, setIncorrectWord] = useState('');
   const [wordPairs, setWordPairs] = useState([]);
-  
+
+  // Stany wyników i ładowania
   const [generatedPlan, setGeneratedPlan] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Dodawanie pary słów (Poprawne -> Niepoprawne)
   const handleAddWordPair = (e) => {
     e.preventDefault();
-    if (wordPairInput.trim()) {
-      setWordPairs([...wordPairs, wordPairInput.trim()]);
-      setWordPairInput('');
+    if (correctWord.trim() && incorrectWord.trim()) {
+      const pairText = `${correctWord.trim()} -> ${incorrectWord.trim()}`;
+      setWordPairs([...wordPairs, pairText]);
+      setCorrectWord('');
+      setIncorrectWord('');
     }
   };
 
+  // Usuwanie pary
   const handleRemoveWordPair = (indexToRemove) => {
     setWordPairs(wordPairs.filter((_, index) => index !== indexToRemove));
   };
 
+  // Generowanie PDF
   const handleDownloadPDF = async () => {
     if (typeof window === 'undefined') return;
 
@@ -49,16 +57,17 @@ export default function Home() {
     }
   };
 
+  // Wysłanie formularza do API na Render
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!problemDescription.trim()) return;
 
     setLoading(true);
     setErrorMessage('');
-    
+
     try {
-      // UWAGA: Upewnij się, że ten adres odpowiada Twojej usłudze na Render!
-      const response = await fetch('https://TWOJA-NAZWA-APLIKACJI.onrender.com/generate-plan', {
+      // PODMIENIONY ADRES BACKENDU NA RENDER:
+      const response = await fetch('https://logopedia-backend.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -79,13 +88,13 @@ export default function Home() {
       const data = await response.json();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana formatowania nowej linii
+      // Zamiana formatowania nowej linii z API
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
     } catch (error) {
       console.error('Błąd generowania planu:', error);
-      setErrorMessage('Nie udało się połączyć z serwerem. Upewnij się, że podałeś poprawny URL backendu na Render.');
+      setErrorMessage('Nie udało się połączyć z serwerem. Sprawdź, czy backend na Render jest aktywny.');
     } finally {
       setLoading(false);
     }
@@ -104,7 +113,7 @@ export default function Home() {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           <div>
-            <label className="input-label">Rola</label>
+            <label className="input-label">Kim jesteś?</label>
             <select 
               value={role} 
               onChange={(e) => setRole(e.target.value)}
@@ -116,25 +125,33 @@ export default function Home() {
           </div>
 
           <div>
-            <label className="input-label">Opis problemu</label>
+            <label className="input-label">Opis problemu logopedycznego</label>
             <textarea 
               rows={4}
               value={problemDescription}
               onChange={(e) => setProblemDescription(e.target.value)}
-              placeholder="Opisz zauważone trudności językowe lub wymowę dziecka..."
+              placeholder="Opisz zauważone trudności językowe lub wymowę dziecka (np. dziecko opuszcza głoskę R)..."
               required
               className="form-input"
             />
           </div>
 
+          {/* Dwa osobne pola na słowa */}
           <div>
-            <label className="input-label">Pary słów (opcjonalnie)</label>
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <label className="input-label">Przykłady niepoprawnie wymawianych słów</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', alignItems: 'center' }}>
               <input 
                 type="text"
-                value={wordPairInput}
-                onChange={(e) => setWordPairInput(e.target.value)}
-                placeholder="np. Król -> Kjuj"
+                value={correctWord}
+                onChange={(e) => setCorrectWord(e.target.value)}
+                placeholder="Prawidłowe słowo (np. Król)"
+                className="form-input"
+              />
+              <input 
+                type="text"
+                value={incorrectWord}
+                onChange={(e) => setIncorrectWord(e.target.value)}
+                placeholder="Jak wymawia dziecko (np. Kjuj)"
                 className="form-input"
               />
               <button 
@@ -147,7 +164,7 @@ export default function Home() {
             </div>
 
             {wordPairs.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
                 {wordPairs.map((pair, index) => (
                   <span key={index} className="word-chip">
                     {pair}
@@ -170,7 +187,7 @@ export default function Home() {
               disabled={loading || !problemDescription.trim()}
               className="btn-primary"
             >
-              {loading ? 'Generowanie...' : 'Generuj plan'}
+              {loading ? 'Generowanie planu...' : 'Generuj Plan Terapii'}
             </button>
 
             {generatedPlan && (
@@ -179,7 +196,7 @@ export default function Home() {
                 onClick={handleDownloadPDF}
                 className="btn-success"
               >
-                📄 Pobierz jako PDF
+                📄 Pobierz Raport PDF
               </button>
             )}
           </div>
