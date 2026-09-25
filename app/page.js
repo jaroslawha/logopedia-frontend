@@ -66,8 +66,8 @@ export default function Home() {
     setErrorMessage('');
 
     try {
-      // PODMIENIONY ADRES BACKENDU NA RENDER:
-      const response = await fetch('https://logopedia-api.onrender.com', {
+      // POPRAWIONY ADRES: dodano /generate-plan na końcu
+      const response = await fetch('https://logopedia-api.onrender.com/generate-plan', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -94,7 +94,7 @@ export default function Home() {
       setGeneratedPlan(rawText);
     } catch (error) {
       console.error('Błąd generowania planu:', error);
-      setErrorMessage('Nie udało się połączyć z serwerem. Sprawdź, czy backend na Render jest aktywny.');
+      setErrorMessage('Nie udało się połączyć z serwerem. Jeśli aplikacja dawno nie była używana, wybudzenie serwera na Render może zająć do 60 sekund. Spróbuj ponowić próbę za chwilę.');
     } finally {
       setLoading(false);
     }
@@ -187,7 +187,7 @@ export default function Home() {
               disabled={loading || !problemDescription.trim()}
               className="btn-primary"
             >
-              {loading ? 'Generowanie planu...' : 'Generuj Plan Terapii'}
+              {loading ? 'Generowanie planu (może potrwać do minuty)...' : 'Generuj Plan Terapii'}
             </button>
 
             {generatedPlan && (
