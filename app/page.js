@@ -67,7 +67,7 @@ export default function Home() {
 
     try {
       // PODMIENIONY ADRES BACKENDU NA RENDER:
-      const response = await fetch('https://logopedia-backend.onrender.com/generate-plan', {
+      const response = await fetch('https://logopedia-api.onrender.com', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
