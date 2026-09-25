@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
@@ -15,6 +15,12 @@ export default function Home() {
   const [generatedPlan, setGeneratedPlan] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Automatyczne wybudzanie serwera Render po załadowaniu strony
+  useEffect(() => {
+    fetch('https://logopedia-api.onrender.com/', { method: 'GET', mode: 'cors' })
+      .catch(() => console.log('Ping wybudzający serwer wysłany.'));
+  }, []);
 
   // Dodawanie pary słów (Poprawne -> Niepoprawne)
   const handleAddWordPair = (e) => {
@@ -65,27 +71,42 @@ export default function Home() {
     setLoading(true);
     setErrorMessage('');
 
-    try {
-      // POPRAWIONY ADRES: dodano /generate-plan na końcu
-      const response = await fetch('https://logopedia-api.onrender.com/generate-plan', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          user_id: 'guest',
-          role: role,
-          problem_description: problemDescription,
-          word_pairs: wordPairs
-        })
-      });
+    const targetUrl = 'https://logopedia-api.onrender.com/generate-plan';
+    const payload = {
+      user_id: 'guest',
+      role: role,
+      problem_description: problemDescription,
+      word_pairs: wordPairs
+    };
 
-      if (!response.ok) {
-        throw new Error(`Błąd serwera: ${response.status}`);
+    // Funkcja do wykonywania zapytania HTTP z ewentualnym ponowieniem
+    const fetchWithRetry = async (retries = 2) => {
+      try {
+        const response = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error(`Błąd HTTP: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (err) {
+        if (retries > 0) {
+          await new Promise((res) => setTimeout(res, 2000));
+          return fetchWithRetry(retries - 1);
+        }
+        throw err;
       }
+    };
 
-      const data = await response.json();
+    try {
+      const data = await fetchWithRetry();
       let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
       // Zamiana formatowania nowej linii z API
@@ -94,7 +115,9 @@ export default function Home() {
       setGeneratedPlan(rawText);
     } catch (error) {
       console.error('Błąd generowania planu:', error);
-      setErrorMessage('Nie udało się połączyć z serwerem. Jeśli aplikacja dawno nie była używana, wybudzenie serwera na Render może zająć do 60 sekund. Spróbuj ponowić próbę za chwilę.');
+      setErrorMessage(
+        'Nie udało się połączyć z serwerem backendowym. Upewnij się, że w pliku main.py na Render właczyłeś obsługę middleware CORS (CORSMiddleware).'
+      );
     } finally {
       setLoading(false);
     }
@@ -187,7 +210,7 @@ export default function Home() {
               disabled={loading || !problemDescription.trim()}
               className="btn-primary"
             >
-              {loading ? 'Generowanie planu (może potrwać do minuty)...' : 'Generuj Plan Terapii'}
+              {loading ? 'Generowanie planu...' : 'Generuj Plan Terapii'}
             </button>
 
             {generatedPlan && (
