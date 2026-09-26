@@ -16,10 +16,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Automatyczne wybudzanie serwera Render po załadowaniu strony
+  // Wybudzanie serwera Render po załadowaniu strony
   useEffect(() => {
     fetch('https://logopedia-api.onrender.com/', { method: 'GET', mode: 'cors' })
-      .catch(() => console.log('Ping wybudzający serwer wysłany.'));
+      .catch(() => console.log('Wysłano ping wybudzający serwer Render.'));
   }, []);
 
   // Dodawanie pary słów (Poprawne -> Niepoprawne)
@@ -79,7 +79,7 @@ export default function Home() {
       word_pairs: wordPairs
     };
 
-    // Funkcja do wykonywania zapytania HTTP z ewentualnym ponowieniem
+    // Funkcja do wykonywania zapytania HTTP z automatycznym ponowieniem
     const fetchWithRetry = async (retries = 2) => {
       try {
         const response = await fetch(targetUrl, {
@@ -91,14 +91,16 @@ export default function Home() {
           body: JSON.stringify(payload)
         });
 
+        const data = await response.json();
+
         if (!response.ok) {
-          throw new Error(`Błąd HTTP: ${response.status}`);
+          throw new Error(data.error || data.detail || `Błąd serwera (${response.status})`);
         }
 
-        return await response.json();
+        return data;
       } catch (err) {
-        if (retries > 0) {
-          await new Promise((res) => setTimeout(res, 2000));
+        if (retries > 0 && err.message.includes('Failed to fetch')) {
+          await new Promise((res) => setTimeout(res, 2500));
           return fetchWithRetry(retries - 1);
         }
         throw err;
@@ -107,16 +109,20 @@ export default function Home() {
 
     try {
       const data = await fetchWithRetry();
-      let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
 
-      // Zamiana formatowania nowej linii z API
+      if (data.error) {
+        setErrorMessage(`Błąd serwera: ${data.error}`);
+        return;
+      }
+
+      let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
       rawText = rawText.replace(/\\n/g, '\n');
 
       setGeneratedPlan(rawText);
     } catch (error) {
       console.error('Błąd generowania planu:', error);
       setErrorMessage(
-        'Nie udało się połączyć z serwerem backendowym. Upewnij się, że w pliku main.py na Render właczyłeś obsługę middleware CORS (CORSMiddleware).'
+        `Wystąpił problem: ${error.message || 'Brak odpowiedzi z serwera. Upewnij się, że serwer na Render jest aktywny oraz wkleiłeś nowy klucz GEMINI_API_KEY.'}`
       );
     } finally {
       setLoading(false);
@@ -199,7 +205,7 @@ export default function Home() {
           </div>
 
           {errorMessage && (
-            <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '6px', fontSize: '14px', border: '1px solid #fecaca' }}>
+            <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '6px', fontSize: '14px', border: '1px solid #fecaca', wordBreak: 'break-word' }}>
               {errorMessage}
             </div>
           )}
@@ -210,7 +216,7 @@ export default function Home() {
               disabled={loading || !problemDescription.trim()}
               className="btn-primary"
             >
-              {loading ? 'Generowanie planu...' : 'Generuj Plan Terapii'}
+              {loading ? 'Generowanie planu (może potrwać do minuty)...' : 'Generuj Plan Terapii'}
             </button>
 
             {generatedPlan && (
