@@ -68,7 +68,9 @@ export default function Home() {
   // Wysłanie formularza do API na Render
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!problemDescription.trim()) return;
+    
+    // Ochrona nr 3: Blokada wielokrotnego wysłania, jeśli zapytanie trwa
+    if (loading || !problemDescription.trim()) return;
 
     setLoading(true);
     setErrorMessage('');
@@ -84,7 +86,7 @@ export default function Home() {
     };
 
     // Funkcja do wykonywania zapytania HTTP z automatycznym ponowieniem
-    const fetchWithRetry = async (retries = 2) => {
+    const fetchWithRetry = async (retries = 1) => {
       try {
         const response = await fetch(targetUrl, {
           method: 'POST',
@@ -115,7 +117,7 @@ export default function Home() {
       const data = await fetchWithRetry();
 
       if (data.error) {
-        setErrorMessage(`Błąd serwera: ${data.error}`);
+        setErrorMessage(`Błąd: ${data.error}`);
         return;
       }
 
@@ -151,6 +153,7 @@ export default function Home() {
               value={role} 
               onChange={(e) => setRole(e.target.value)}
               className="form-input"
+              disabled={loading}
             >
               <option value="Rodzic / opiekun">Rodzic / opiekun</option>
               <option value="Logopeda / specjalista">Logopeda / specjalista</option>
@@ -166,6 +169,7 @@ export default function Home() {
                 onChange={(e) => setChildName(e.target.value)}
                 placeholder="np. Janek"
                 required
+                disabled={loading}
                 className="form-input"
               />
             </div>
@@ -178,6 +182,7 @@ export default function Home() {
                 onChange={(e) => setChildAge(e.target.value)}
                 placeholder="np. 4 lata"
                 required
+                disabled={loading}
                 className="form-input"
               />
             </div>
@@ -191,6 +196,7 @@ export default function Home() {
               onChange={(e) => setProblemDescription(e.target.value)}
               placeholder="Opisz zauważone trudności językowe lub wymowę dziecka (np. dziecko opuszcza głoskę R)..."
               required
+              disabled={loading}
               className="form-input"
             />
           </div>
@@ -204,6 +210,7 @@ export default function Home() {
                 value={correctWord}
                 onChange={(e) => setCorrectWord(e.target.value)}
                 placeholder="Prawidłowe słowo (np. Król)"
+                disabled={loading}
                 className="form-input"
               />
               <input 
@@ -211,11 +218,13 @@ export default function Home() {
                 value={incorrectWord}
                 onChange={(e) => setIncorrectWord(e.target.value)}
                 placeholder="Jak wymawia dziecko (np. Kjuj)"
+                disabled={loading}
                 className="form-input"
               />
               <button 
                 type="button" 
                 onClick={handleAddWordPair}
+                disabled={loading}
                 className="btn-secondary"
               >
                 Dodaj parę
@@ -227,7 +236,7 @@ export default function Home() {
                 {wordPairs.map((pair, index) => (
                   <span key={index} className="word-chip">
                     {pair}
-                    <button type="button" onClick={() => handleRemoveWordPair(index)} className="chip-remove">×</button>
+                    <button type="button" onClick={() => handleRemoveWordPair(index)} disabled={loading} className="chip-remove">×</button>
                   </span>
                 ))}
               </div>
@@ -246,13 +255,14 @@ export default function Home() {
               disabled={loading || !problemDescription.trim()}
               className="btn-primary"
             >
-              {loading ? 'Generowanie planu (może potrwać do minuty)...' : 'Generuj Plan Terapii'}
+              {loading ? '⏳ Generowanie planu w toku...' : 'Generuj Plan Terapii'}
             </button>
 
             {generatedPlan && (
               <button 
                 type="button"
                 onClick={handleDownloadPDF}
+                disabled={loading}
                 className="btn-success"
               >
                 📄 Pobierz Raport PDF
@@ -337,6 +347,7 @@ export default function Home() {
           cursor: pointer;
           font-weight: 600;
           font-size: 14px;
+          transition: background-color 0.2s;
         }
 
         .btn-primary:disabled {
