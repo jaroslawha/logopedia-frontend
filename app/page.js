@@ -69,7 +69,7 @@ export default function Home() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Ochrona nr 3: Blokada wielokrotnego wysłania, jeśli zapytanie trwa
+    // Ochrona nr 3: Blokada wielokrotnego wysłania
     if (loading || !problemDescription.trim()) return;
 
     setLoading(true);
@@ -85,7 +85,6 @@ export default function Home() {
       word_pairs: wordPairs
     };
 
-    // Funkcja do wykonywania zapytania HTTP z automatycznym ponowieniem
     const fetchWithRetry = async (retries = 1) => {
       try {
         const response = await fetch(targetUrl, {
@@ -201,7 +200,6 @@ export default function Home() {
             />
           </div>
 
-          {/* Dwa osobne pola na słowa */}
           <div>
             <label className="input-label">Przykłady niepoprawnie wymawianych słów</label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', alignItems: 'center' }}>
@@ -289,6 +287,11 @@ export default function Home() {
 
             <div className="plan-styled-content">
               <ReactMarkdown>{generatedPlan}</ReactMarkdown>
+            </div>
+
+            {/* KLAUZULA PRAWNA / DISCLAIMER */}
+            <div className="disclaimer-box">
+              <strong>Zastrzeżenie prawne:</strong> Niniejszy dokument oraz generowany plan ćwiczeń zostały opracowane automatycznie przy użyciu algorytmów sztucznej inteligencji (AI) i mają charakter wyłącznie informacyjny, edukacyjny oraz pomocniczy. Wygenerowane treści nie stanowią diagnozy medycznej, opinii logopedycznej ani świadczenia zdrowotnego w rozumieniu przepisów prawa. Stosowanie opisanego planu nie zastępuje bezpośredniej konsultacji, diagnozy ani terapii prowadzonej przez wykwalifikowanego logopedę lub neurologopedę. W przypadku wątpliwości dotyczących rozwoju mowy dziecka zaleca się wizytę w gabinecie specjalisty.
             </div>
           </div>
 
@@ -405,6 +408,17 @@ export default function Home() {
           padding: 4px 8px;
           border-radius: 4px;
           text-transform: uppercase;
+        }
+
+        .disclaimer-box {
+          margin-top: 30px;
+          padding: 14px 16px;
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 11px;
+          line-height: 1.5;
+          color: #64748b;
         }
 
         /* Formatowanie wygenerowanej zawartości */
