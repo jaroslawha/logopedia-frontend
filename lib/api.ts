@@ -1,17 +1,17 @@
 // src/lib/api.ts
 
-// Pobieramy adres z Vercela / pliku .env.local
-// Jeśli zmienna nie istnieje, domyślnie używamy lokalnego backendu
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://logopedia-api.onrender.com';
 
 /**
  * Funkcja wysyłająca dane do generowania planu logopedycznego
  */
 export async function generateTherapyPlan(payload: {
+  user_id?: string;
+  role: string;
   child_name?: string;
-  age?: number;
-  diagnosis?: string;
-  notes?: string;
+  child_age?: string;
+  problem_description: str;
+  word_pairs?: string[];
 }) {
   const response = await fetch(`${API_BASE_URL}/generate-plan`, {
     method: 'POST',
@@ -23,7 +23,7 @@ export async function generateTherapyPlan(payload: {
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Błąd serwera: ${response.status}`);
+    throw new Error(errorData.detail || errorData.error || `Błąd serwera: ${response.status}`);
   }
 
   return await response.json();
