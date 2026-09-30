@@ -5,7 +5,9 @@ import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
   // Stany formularza
-  const [role, setRole] = useState('Rodzic');
+  const [role, setRole] = useState('Rodzic / opiekun');
+  const [childName, setChildName] = useState('');
+  const [childAge, setChildAge] = useState('');
   const [problemDescription, setProblemDescription] = useState('');
   const [correctWord, setCorrectWord] = useState('');
   const [incorrectWord, setIncorrectWord] = useState('');
@@ -51,7 +53,7 @@ export default function Home() {
 
       const opt = {
         margin: [8, 8, 8, 8],
-        filename: 'Plan_Terapii_Logopedycznej.pdf',
+        filename: `Plan_Terapii_${childName ? childName : 'Dziecko'}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, logging: false },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -75,6 +77,8 @@ export default function Home() {
     const payload = {
       user_id: 'guest',
       role: role,
+      child_name: childName.trim(),
+      child_age: childAge.trim(),
       problem_description: problemDescription,
       word_pairs: wordPairs
     };
@@ -122,7 +126,7 @@ export default function Home() {
     } catch (error) {
       console.error('Błąd generowania planu:', error);
       setErrorMessage(
-        `Wystąpił problem: ${error.message || 'Brak odpowiedzi z serwera. Upewnij się, że serwer na Render jest aktywny oraz wkleiłeś nowy klucz GEMINI_API_KEY.'}`
+        `Wystąpił problem: ${error.message || 'Brak odpowiedzi z serwera.'}`
       );
     } finally {
       setLoading(false);
@@ -148,9 +152,35 @@ export default function Home() {
               onChange={(e) => setRole(e.target.value)}
               className="form-input"
             >
-              <option value="Rodzic">Rodzic</option>
-              <option value="Logopeda">Logopeda</option>
+              <option value="Rodzic / opiekun">Rodzic / opiekun</option>
+              <option value="Logopeda / specjalista">Logopeda / specjalista</option>
             </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div>
+              <label className="input-label">Imię dziecka</label>
+              <input 
+                type="text"
+                value={childName}
+                onChange={(e) => setChildName(e.target.value)}
+                placeholder="np. Janek"
+                required
+                className="form-input"
+              />
+            </div>
+
+            <div>
+              <label className="input-label">Wiek dziecka</label>
+              <input 
+                type="text"
+                value={childAge}
+                onChange={(e) => setChildAge(e.target.value)}
+                placeholder="np. 4 lata"
+                required
+                className="form-input"
+              />
+            </div>
           </div>
 
           <div>
