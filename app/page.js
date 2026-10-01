@@ -2,16 +2,8 @@
 
 import React, { useState } from "react";
 
-interface FormData {
-  role: string;
-  childName: string;
-  childAge: string;
-  problemDescription: string;
-  wordPairs: string;
-}
-
 export default function Home() {
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState({
     role: "Rodzic / Opiekun",
     childName: "",
     childAge: "",
@@ -19,15 +11,13 @@ export default function Home() {
     wordPairs: "",
   });
 
-  const [loading, setLoading] = useState<boolean>(false);
-  const [generatedPlan, setGeneratedPlan] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [generatedPlan, setGeneratedPlan] = useState(null);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   const MAX_DESCRIPTION_LENGTH = 2000;
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -35,7 +25,7 @@ export default function Home() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
@@ -74,7 +64,7 @@ export default function Home() {
       }
 
       setGeneratedPlan(data.generated_plan);
-    } catch (err: any) {
+    } catch (err) {
       setErrorMessage(err.message || "Coś poszło nie tak. Spróbuj ponownie za chwilę.");
     } finally {
       setLoading(false);
