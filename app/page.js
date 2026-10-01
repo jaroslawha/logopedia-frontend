@@ -1,227 +1,474 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
+import { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 export default function Home() {
-  const [formData, setFormData] = useState({
-    role: "Rodzic / Opiekun",
-    childName: "",
-    childAge: "",
-    problemDescription: "",
-    wordPairs: "",
-  });
+  // Stany formularza
+  const [role, setRole] = useState('Rodzic / opiekun');
+  const [childName, setChildName] = useState('');
+  const [childAge, setChildAge] = useState('');
+  const [problemDescription, setProblemDescription] = useState('');
+  const [correctWord, setCorrectWord] = useState('');
+  const [incorrectWord, setIncorrectWord] = useState('');
+  const [wordPairs, setWordPairs] = useState([]);
 
+  // Stany wyników i ładowania
+  const [generatedPlan, setGeneratedPlan] = useState('');
   const [loading, setLoading] = useState(false);
-  const [generatedPlan, setGeneratedPlan] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const MAX_DESCRIPTION_LENGTH = 2000;
+  // Wybudzanie serwera Render po załadowaniu strony
+  useEffect(() => {
+    fetch('https://logopedia-api.onrender.com/', { method: 'GET', mode: 'cors' })
+      .catch(() => console.log('Wysłano ping wybudzający serwer Render.'));
+  }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // Dodawanie pary słów (Poprawne -> Niepoprawne)
+  const handleAddWordPair = (e) => {
+    e.preventDefault();
+    if (correctWord.trim() && incorrectWord.trim()) {
+      const pairText = `${correctWord.trim()} -> ${incorrectWord.trim()}`;
+      setWordPairs([...wordPairs, pairText]);
+      setCorrectWord('');
+      setIncorrectWord('');
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMessage(null);
-    setGeneratedPlan(null);
+  // Usuwanie pary
+  const handleRemoveWordPair = (indexToRemove) => {
+    setWordPairs(wordPairs.filter((_, index) => index !== indexToRemove));
+  };
 
-    // Podział par słów po przecinku na tablicę
-    const wordPairsArray = formData.wordPairs
-      ? formData.wordPairs.split(",").map((item) => item.trim()).filter(Boolean)
-      : [];
+  // Generowanie PDF
+  const handleDownloadPDF = async () => {
+    if (typeof window === 'undefined') return;
 
-    const payload = {
-      role: formData.role,
-      child_name: formData.childName.trim() || "Dziecko",
-      child_age: formData.childAge.trim() || "niepodany",
-      problem_description: formData.problemDescription,
-      word_pairs: wordPairsArray,
-    };
-
-    // Pobranie URL backendu ze zmiennej środowiskowej lub domyślny adres Render
-    const backendUrl =
-      process.env.NEXT_PUBLIC_BACKEND_URL || "https://twoja-nazwa-backendu.onrender.com";
+    const element = document.getElementById('pdf-cards-container');
+    if (!element) return;
 
     try {
-      const response = await fetch(`${backendUrl}/generate-plan`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const html2pdfModule = await import('html2pdf.js');
+      const html2pdf = html2pdfModule.default || html2pdfModule;
 
-      const data = await response.json();
+      const opt = {
+        margin: [8, 8, 8, 8],
+        filename: `Plan_Terapii_${childName ? childName : 'Dziecko'}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
 
-      if (!response.ok) {
-        throw new Error(data.error || data.detail || "Wystąpił błąd podczas generowania planu.");
+      html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error('Błąd podczas generowania PDF:', err);
+    }
+  };
+
+  // Wysłanie formularza do API na Render
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Ochrona nr 3: Blokada wielokrotnego wysłania
+    if (loading || !problemDescription.trim()) return;
+
+    setLoading(true);
+    setErrorMessage('');
+
+    const targetUrl = 'https://logopedia-api.onrender.com/generate-plan';
+    const payload = {
+      user_id: 'guest',
+      role: role,
+      child_name: childName.trim(),
+      child_age: childAge.trim(),
+      problem_description: problemDescription,
+      word_pairs: wordPairs
+    };
+
+    const fetchWithRetry = async (retries = 1) => {
+      try {
+        const response = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || data.detail || `Błąd serwera (${response.status})`);
+        }
+
+        return data;
+      } catch (err) {
+        if (retries > 0 && err.message.includes('Failed to fetch')) {
+          await new Promise((res) => setTimeout(res, 2500));
+          return fetchWithRetry(retries - 1);
+        }
+        throw err;
+      }
+    };
+
+    try {
+      const data = await fetchWithRetry();
+
+      if (data.error) {
+        setErrorMessage(`Błąd: ${data.error}`);
+        return;
       }
 
-      setGeneratedPlan(data.generated_plan);
-    } catch (err) {
-      setErrorMessage(err.message || "Coś poszło nie tak. Spróbuj ponownie za chwilę.");
+      let rawText = typeof data === 'string' ? data : (data.generated_plan || JSON.stringify(data));
+      rawText = rawText.replace(/\\n/g, '\n');
+
+      setGeneratedPlan(rawText);
+    } catch (error) {
+      console.error('Błąd generowania planu:', error);
+      setErrorMessage(
+        `Wystąpił problem: ${error.message || 'Brak odpowiedzi z serwera.'}`
+      );
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto bg-white p-6 sm:p-8 rounded-xl shadow-md border border-gray-100">
-        <header className="text-center mb-8">
-          <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-            Generator Planu Terapii Logopedycznej
-          </h1>
-          <p className="mt-2 text-sm text-gray-600">
-            Wypełnij poniższe pola, aby otrzymać spersonalizowany plan ćwiczeń oparty na AI.
-          </p>
-        </header>
+    <main style={{ maxWidth: '850px', margin: '40px auto', padding: '0 20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      
+      {/* FORMULARZ WEJŚCIOWY */}
+      <div className="card-box" style={{ marginBottom: '30px' }}>
+        <h1 style={{ marginTop: 0, fontSize: '24px', color: '#0f172a' }}>Generator Planu Terapii Logopedycznej</h1>
+        <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '24px' }}>
+          Wypełnij poniższe pola, aby wygenerować spersonalizowaną kartę diagnozy oraz plan ćwiczeń.
+        </p>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ROLA */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
           <div>
-            <label htmlFor="role" className="block text-sm font-semibold text-gray-700 mb-2">
-              Kim jesteś?
-            </label>
-            <select
-              id="role"
-              name="role"
-              value={formData.role}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-gray-900 bg-white"
+            <label className="input-label">Kim jesteś?</label>
+            <select 
+              value={role} 
+              onChange={(e) => setRole(e.target.value)}
+              className="form-input"
+              disabled={loading}
             >
-              <option value="Rodzic / Opiekun">Rodzic / Opiekun</option>
-              <option value="Logopeda / Specjalista">Logopeda / Specjalista</option>
+              <option value="Rodzic / opiekun">Rodzic / opiekun</option>
+              <option value="Logopeda / specjalista">Logopeda / specjalista</option>
             </select>
           </div>
 
-          {/* IMIĘ I WIEK DZIECKA (DANE NIEWRAŻLIWE) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div>
-              <label htmlFor="childName" className="block text-sm font-semibold text-gray-700 mb-1">
-                Tylko imię dziecka (opcjonalnie)
-              </label>
-              <input
+              <label className="input-label">Imię dziecka</label>
+              <input 
                 type="text"
-                id="childName"
-                name="childName"
-                maxLength={50}
-                placeholder="Np. Janek"
-                value={formData.childName}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                value={childName}
+                onChange={(e) => setChildName(e.target.value)}
+                placeholder="np. Janek"
+                required
+                disabled={loading}
+                className="form-input"
               />
             </div>
 
             <div>
-              <label htmlFor="childAge" className="block text-sm font-semibold text-gray-700 mb-1">
-                Wiek dziecka
-              </label>
-              <input
+              <label className="input-label">Wiek dziecka</label>
+              <input 
                 type="text"
-                id="childAge"
-                name="childAge"
-                maxLength={30}
-                placeholder="Np. 5 lat"
-                value={formData.childAge}
-                onChange={handleChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                value={childAge}
+                onChange={(e) => setChildAge(e.target.value)}
+                placeholder="np. 4 lata"
+                required
+                disabled={loading}
+                className="form-input"
               />
             </div>
           </div>
 
-          {/* OPIS PROBLEMU */}
           <div>
-            <div className="flex justify-between items-center mb-1">
-              <label htmlFor="problemDescription" className="block text-sm font-semibold text-gray-700">
-                Opis trudności i wyzwań mowy <span className="text-red-500">*</span>
-              </label>
-              <span className="text-xs text-gray-400">
-                {formData.problemDescription.length}/{MAX_DESCRIPTION_LENGTH} znaków
-              </span>
-            </div>
-            <textarea
-              id="problemDescription"
-              name="problemDescription"
+            <label className="input-label">Opis problemu logopedycznego</label>
+            <textarea 
+              rows={4}
+              value={problemDescription}
+              onChange={(e) => setProblemDescription(e.target.value)}
+              placeholder="Opisz zauważone trudności językowe lub wymowę dziecka (np. dziecko opuszcza głoskę R)..."
               required
-              rows={5}
-              maxLength={MAX_DESCRIPTION_LENGTH}
-              placeholder="Opisz, z jakimi głoskami lub wypowiedziami dziecko ma trudność. Np. zamienia 'r' na 'l', opuszcza końcówki wyrazów..."
-              value={formData.problemDescription}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              disabled={loading}
+              className="form-input"
             />
           </div>
 
-          {/* PRZYKŁADOWE PARY SŁÓW */}
           <div>
-            <label htmlFor="wordPairs" className="block text-sm font-semibold text-gray-700 mb-1">
-              Przykłady błędnej wymowy / słów (rozdziel przecinkami)
-            </label>
-            <input
-              type="text"
-              id="wordPairs"
-              name="wordPairs"
-              placeholder="Np. rynna -> lynna, rak -> lak"
-              value={formData.wordPairs}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
-            />
+            <label className="input-label">Przykłady niepoprawnie wymawianych słów</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px', alignItems: 'center' }}>
+              <input 
+                type="text"
+                value={correctWord}
+                onChange={(e) => setCorrectWord(e.target.value)}
+                placeholder="Prawidłowe słowo (np. Król)"
+                disabled={loading}
+                className="form-input"
+              />
+              <input 
+                type="text"
+                value={incorrectWord}
+                onChange={(e) => setIncorrectWord(e.target.value)}
+                placeholder="Jak wymawia dziecko (np. Kjuj)"
+                disabled={loading}
+                className="form-input"
+              />
+              <button 
+                type="button" 
+                onClick={handleAddWordPair}
+                disabled={loading}
+                className="btn-secondary"
+              >
+                Dodaj parę
+              </button>
+            </div>
+
+            {wordPairs.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
+                {wordPairs.map((pair, index) => (
+                  <span key={index} className="word-chip">
+                    {pair}
+                    <button type="button" onClick={() => handleRemoveWordPair(index)} disabled={loading} className="chip-remove">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* INFORMACJA RODO I BEZPIECZEŃSTWO DANYCH */}
-          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start space-x-3">
-            <span className="text-amber-600 text-xl leading-none">🔒</span>
-            <p className="text-xs text-amber-900 leading-relaxed">
-              <strong>Ochrona prywatności i RODO:</strong> Ze względu na ochronę danych osobowych,{" "}
-              <span className="underline font-semibold">nie wprowadzaj nazwiska dziecka</span>, numerów
-              PESEL, adresów zamieszkania ani nazwy przedszkola/szkoły. Wystarczy samo imię i wiek.
-            </p>
-          </div>
-
-          {/* KOMUNIKAT O BŁĘDZIE */}
           {errorMessage && (
-            <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-              ⚠️ {errorMessage}
+            <div style={{ color: '#dc2626', backgroundColor: '#fef2f2', padding: '12px', borderRadius: '6px', fontSize: '14px', border: '1px solid #fecaca', wordBreak: 'break-word' }}>
+              {errorMessage}
             </div>
           )}
 
-          {/* PRZYCISK WYSYŁANIA */}
-          <button
-            type="submit"
-            disabled={loading || !formData.problemDescription.trim()}
-            className="w-full py-3 px-6 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold rounded-lg shadow transition-colors flex items-center justify-center space-x-2"
-          >
-            {loading ? (
-              <>
-                <svg className="animate-spin h-5 w-5 text-white" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <span>Generowanie planu...</span>
-              </>
-            ) : (
-              <span>Wygeneruj Plan Terapii</span>
-            )}
-          </button>
-        </form>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+            <button 
+              type="submit"
+              disabled={loading || !problemDescription.trim()}
+              className="btn-primary"
+            >
+              {loading ? '⏳ Generowanie planu w toku...' : 'Generuj Plan Terapii'}
+            </button>
 
-        {/* WYNIK GENEROWANIA PLANU */}
-        {generatedPlan && (
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Wygenerowany Plan Terapii:</h3>
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 whitespace-pre-wrap font-sans leading-relaxed text-sm sm:text-base">
-              {generatedPlan}
+            {generatedPlan && (
+              <button 
+                type="button"
+                onClick={handleDownloadPDF}
+                disabled={loading}
+                className="btn-success"
+              >
+                📄 Pobierz Raport PDF
+              </button>
+            )}
+          </div>
+
+        </form>
+      </div>
+
+      {/* SEKCJA WYNIKOWA DO DRUKU / ZAPISU PDF */}
+      {generatedPlan && (
+        <div id="pdf-cards-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div className="card-box">
+            <div className="card-header">
+              <div>
+                <span className="badge">Karta Terapii</span>
+                <h2 style={{ margin: '8px 0 0 0', fontSize: '20px', color: '#0f172a' }}>
+                  Analiza Logopedyczna i Plan Pracy
+                </h2>
+              </div>
+            </div>
+
+            <div className="plan-styled-content">
+              <ReactMarkdown>{generatedPlan}</ReactMarkdown>
+            </div>
+
+            {/* KLAUZULA PRAWNA / DISCLAIMER */}
+            <div className="disclaimer-box">
+              <strong>Zastrzeżenie prawne:</strong> Niniejszy dokument oraz generowany plan ćwiczeń zostały opracowane automatycznie przy użyciu algorytmów sztucznej inteligencji (AI) i mają charakter wyłącznie informacyjny, edukacyjny oraz pomocniczy. Wygenerowane treści nie stanowią diagnozy medycznej, opinii logopedycznej ani świadczenia zdrowotnego w rozumieniu przepisów prawa. Stosowanie opisanego planu nie zastępuje bezpośredniej konsultacji, diagnozy ani terapii prowadzonej przez wykwalifikowanego logopedę lub neurologopedę. W przypadku wątpliwości dotyczących rozwoju mowy dziecka zaleca się wizytę w gabinecie specjalisty.
             </div>
           </div>
-        )}
-      </div>
+
+          <div style={{ textAlign: 'center', fontSize: '11px', color: '#94a3b8' }}>
+            Wygenerowano automatycznie z systemu AI Logopedia
+          </div>
+
+        </div>
+      )}
+
+      {/* STYLE CSS */}
+      <style jsx global>{`
+        .card-box {
+          background-color: #ffffff;
+          padding: 32px;
+          border-radius: 12px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .card-header {
+          border-bottom: 2px solid #e2e8f0;
+          padding-bottom: 16px;
+          margin-bottom: 20px;
+        }
+
+        .input-label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          color: #475569;
+          margin-bottom: 6px;
+        }
+
+        .form-input {
+          width: 100%;
+          padding: 10px 12px;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          font-size: 14px;
+          box-sizing: border-box;
+          font-family: inherit;
+        }
+
+        .form-input:focus {
+          outline: none;
+          border-color: #0284c7;
+        }
+
+        .btn-primary {
+          padding: 12px 24px;
+          background-color: #0284c7;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          transition: background-color 0.2s;
+        }
+
+        .btn-primary:disabled {
+          background-color: #94a3b8;
+          cursor: not-allowed;
+        }
+
+        .btn-secondary {
+          padding: 10px 16px;
+          background-color: #f1f5f9;
+          color: #334155;
+          border: 1px solid #cbd5e1;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: 600;
+          white-space: nowrap;
+        }
+
+        .btn-success {
+          padding: 12px 24px;
+          background-color: #16a34a;
+          color: #ffffff;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+        }
+
+        .word-chip {
+          background-color: #e0f2fe;
+          color: #0369a1;
+          padding: 4px 10px;
+          border-radius: 16px;
+          font-size: 13px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .chip-remove {
+          background: none;
+          border: none;
+          color: #0369a1;
+          cursor: pointer;
+          font-weight: bold;
+          padding: 0;
+        }
+
+        .badge {
+          background-color: #e0f2fe;
+          color: #0369a1;
+          font-size: 11px;
+          font-weight: 700;
+          padding: 4px 8px;
+          border-radius: 4px;
+          text-transform: uppercase;
+        }
+
+        .disclaimer-box {
+          margin-top: 30px;
+          padding: 14px 16px;
+          background-color: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          font-size: 11px;
+          line-height: 1.5;
+          color: #64748b;
+        }
+
+        /* Formatowanie wygenerowanej zawartości */
+        .plan-styled-content p {
+          font-size: 15px;
+          line-height: 1.7;
+          color: #334155;
+          margin-bottom: 16px;
+          white-space: pre-wrap;
+        }
+
+        .plan-styled-content strong {
+          color: #0369a1;
+          background-color: #f0f9ff;
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-weight: 700;
+        }
+
+        .plan-styled-content h1, 
+        .plan-styled-content h2 {
+          color: #0f172a;
+          font-size: 17px;
+          margin-top: 28px;
+          margin-bottom: 14px;
+          border-left: 4px solid #0284c7;
+          padding-left: 10px;
+        }
+
+        .plan-styled-content h3 {
+          color: #0f172a;
+          font-size: 15px;
+          margin-top: 20px;
+          margin-bottom: 10px;
+        }
+
+        .plan-styled-content ul, 
+        .plan-styled-content ol {
+          margin: 12px 0 20px 20px;
+          padding: 0;
+        }
+
+        .plan-styled-content li {
+          font-size: 14px;
+          line-height: 1.6;
+          color: #334155;
+          margin-bottom: 8px;
+        }
+      `}</style>
+
     </main>
   );
 }
