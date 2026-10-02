@@ -159,32 +159,39 @@ export default function Home() {
             </select>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div>
-              <label className="input-label">Imię dziecka</label>
-              <input 
-                type="text"
-                value={childName}
-                onChange={(e) => setChildName(e.target.value)}
-                placeholder="np. Janek"
-                required
-                disabled={loading}
-                className="form-input"
-              />
-            </div>
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label className="input-label">Imię dziecka</label>
+                <input 
+                  type="text"
+                  value={childName}
+                  onChange={(e) => setChildName(e.target.value)}
+                  placeholder="np. Janek"
+                  required
+                  disabled={loading}
+                  className="form-input"
+                />
+              </div>
 
-            <div>
-              <label className="input-label">Wiek dziecka</label>
-              <input 
-                type="text"
-                value={childAge}
-                onChange={(e) => setChildAge(e.target.value)}
-                placeholder="np. 4 lata"
-                required
-                disabled={loading}
-                className="form-input"
-              />
+              <div>
+                <label className="input-label">Wiek dziecka</label>
+                <input 
+                  type="text"
+                  value={childAge}
+                  onChange={(e) => setChildAge(e.target.value)}
+                  placeholder="np. 4 lata"
+                  required
+                  disabled={loading}
+                  className="form-input"
+                />
+              </div>
             </div>
+            
+            {/* WSKAZÓWKA OCHRONY DANYCH POD POLAMI IMIĘ / WIEK */}
+            <p style={{ fontSize: '12px', color: '#0369a1', marginTop: '6px', marginBottom: 0 }}>
+              🔒 <strong>Chroń prywatność:</strong> podaj tylko imię dziecka, bez nazwiska ani innych danych identyfikacyjnych.
+            </p>
           </div>
 
           <div>
@@ -292,6 +299,11 @@ export default function Home() {
             {/* KLAUZULA PRAWNA / DISCLAIMER */}
             <div className="disclaimer-box">
               <strong>Zastrzeżenie prawne:</strong> Niniejszy dokument oraz generowany plan ćwiczeń zostały opracowane automatycznie przy użyciu algorytmów sztucznej inteligencji (AI) i mają charakter wyłącznie informacyjny, edukacyjny oraz pomocniczy. Wygenerowane treści nie stanowią diagnozy medycznej, opinii logopedycznej ani świadczenia zdrowotnego w rozumieniu przepisów prawa. Stosowanie opisanego planu nie zastępuje bezpośredniej konsultacji, diagnozy ani terapii prowadzonej przez wykwalifikowanego logopedę lub neurologopedę. W przypadku wątpliwości dotyczących rozwoju mowy dziecka zaleca się wizytę w gabinecie specjalisty.
+            </div>
+
+            {/* KLAUZULA RODO */}
+            <div className="rodo-box">
+              <strong>Informacja o ochronie danych osobowych (RODO):</strong> Wprowadzone dane (imię dziecka, wiek, opis problemu oraz przykłady wymowy) są przetwarzane wyłącznie w celu wygenerowania niniejszej karty terapii przez model sztucznej inteligencji. Serwis nie wymaga podawania nazwisk, numerów PESEL ani innych danych umożliwiających jednoznaczną identyfikację tożsamości dziecka. Dane nie są udostępniane podmiotom trzecim w celach marketingowych ani przechowywane bez zgody użytkownika.
             </div>
           </div>
 
@@ -419,6 +431,17 @@ export default function Home() {
           font-size: 11px;
           line-height: 1.5;
           color: #64748b;
+        }
+
+        .rodo-box {
+          margin-top: 12px;
+          padding: 14px 16px;
+          background-color: #f0f9ff;
+          border: 1px solid #bae6fd;
+          border-radius: 8px;
+          font-size: 11px;
+          line-height: 1.5;
+          color: #0369a1;
         }
 
         /* Formatowanie wygenerowanej zawartości */
